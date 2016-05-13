@@ -36,6 +36,42 @@ namespace NJN1DBackup
 {
     public class DifferentialBackup
     {
+
+        private OneDriveFolderObj GetObjDetails(String path)
+        {
+       
+            HttpWebResponse _webResponse = null;
+            OneDriveFolderObj _dirData = null;
+
+            Uri _requestURL = new Uri(Util.OneDriveItemResources.DriveURLRoot + Util.OneDriveItemResources.strDrive_Root + ":" + HttpUtility.UrlEncode(path) + Util.Resources.strFetchFolderObj);
+            HttpWebRequest _webRequest = (HttpWebRequest)WebRequest.Create(_requestURL);
+            Debug.Print("GetFolderDetails: " + path);
+
+            _webRequest.Headers.Add(Util.Header.Authorization, Util.Settings.Token.tokenType + " " + Util.Settings.Token.accessToken);
+
+            try
+            {
+                _webResponse = (HttpWebResponse)_webRequest.GetResponse();
+                if (_webResponse.StatusCode == HttpStatusCode.OK)
+                {
+                    DataContractJsonSerializer _jsonSerializer = new DataContractJsonSerializer(typeof(OneDriveFolderObj));
+                    _dirData = (OneDriveFolderObj)_jsonSerializer.ReadObject(_webResponse.GetResponseStream());
+                }
+                else
+                {
+                    Util.PrintError<String>(_webResponse, "Fetching Directory: " + path);
+                }
+            }
+            catch (WebException e)
+            {
+                Util.PrintError<ErrorObj1D>((HttpWebResponse)e.Response, "Fetching Folder Properties: " + path);
+            }
+            finally
+            {
+                if (_webResponse != null) _webResponse.Close();
+            }
+            return _dirData;
+        }
         private CreateItemObj CreateFolder(string _path)
         {
             DataContractJsonSerializer _jsonSerializer;
@@ -44,12 +80,37 @@ namespace NJN1DBackup
             Dictionary<string, object> _dictObject = new Dictionary<string, object>();
             Dictionary<string, object> _folderDictObject = new Dictionary<string, object>();
             HttpWebResponse _webResponse = null;
-
+            String id = "";
             String _folderName = _path.Substring(_path.LastIndexOf('/') + 1);
-            Uri _requestURL = new Uri(Util.OneDriveItemResources.DriveURLRoot + Util.OneDriveItemResources.strDrive_Root + ":" + HttpUtility.UrlEncode(_path));
+            //HttpUtility.UrlEncode(_path));
+            String parentpath = _path.Substring(0,_path.LastIndexOf("/"));
+
+            //foreach (var item in lstFolder)
+            //{
+            //    Debug.Print(item.folder);
+            //}
+            foreach (var item in lstFolder)
+            {
+                if (item.folder == parentpath)
+                {
+                    id = item.obj.id;
+                    break;
+                }
+            }
+            if (id == "")
+            {
+                OneDriveFolderObj _obj = GetObjDetails(parentpath);
+                id = _obj.ID;
+            }
+            if (id == "")
+            {
+                Debug.Print("Parent Not Found: "+parentpath);
+                return null;
+            }
+            Uri _requestURL = new Uri(Util.OneDriveItemResources.DriveURLRoot + Util.OneDriveItemResources.strDrive_Items + "/" + id + "/children");
             HttpWebRequest _webRequest = (HttpWebRequest)WebRequest.Create(_requestURL);
-            Debug.Print(_requestURL.AbsoluteUri);
-            _webRequest.Method = Util.Method.PUT;
+            Debug.Print("Create Folder: " + _path);
+            _webRequest.Method = Util.Method.POST;
             _webRequest.ContentType = Util.HTTPContentTypes.AppJson;
             _webRequest.Headers.Add(Util.Header.Authorization, Util.Settings.Token.tokenType + " " + Util.Settings.Token.accessToken);
 
@@ -71,7 +132,7 @@ namespace NJN1DBackup
             try
             {
                 _webResponse = (HttpWebResponse)_webRequest.GetResponse();
-                if (_webResponse.StatusCode == HttpStatusCode.Created)
+                if ((_webResponse.StatusCode == HttpStatusCode.Created)|| (_webResponse.StatusCode == HttpStatusCode.OK))
                 {
                     _jsonSerializer = new DataContractJsonSerializer(typeof(CreateItemObj));
                     _returnObject = (CreateItemObj)_jsonSerializer.ReadObject(_webResponse.GetResponseStream());
@@ -79,6 +140,14 @@ namespace NJN1DBackup
                     if ((_folderName != _returnObject.name) || (_returnObject.folder == null))
                         Util.PrintError<String>(_webResponse, "Creating Directory: " + _path);
                 }
+                //else if (_webResponse.StatusCode == HttpStatusCode.OK)
+                //{
+                //    DataContractJsonSerializer jsonObject = new DataContractJsonSerializer(typeof(String));
+                //    long i = _webResponse.ContentLength;
+                //    var s = _webResponse.GetResponseStream();
+                //    String data = (String)jsonObject.ReadObject(s);
+                    
+                //}
                 else
                 {
                     Util.PrintError<String>(_webResponse, "Creating Directory: " + _path);
@@ -165,7 +234,7 @@ namespace NJN1DBackup
             HttpWebResponse _webResponse = null;
             Uri _requestURL = new Uri(Util.OneDriveItemResources.DriveURLRoot + Util.OneDriveItemResources.strDrive_Root + ":" + HttpUtility.UrlEncode(_path));
             HttpWebRequest _webRequest = (HttpWebRequest)WebRequest.Create(_requestURL);
-            Debug.Print(_requestURL.AbsoluteUri);
+            Debug.Print("Delete Folder: " + _path);
             _webRequest.Method = Util.Method.DELETE;
             _webRequest.Headers.Add(Util.Header.Authorization, Util.Settings.Token.tokenType + " " + Util.Settings.Token.accessToken);
 
@@ -194,14 +263,14 @@ namespace NJN1DBackup
             }
         }
 
-        public static ItemObjArray GetDirectory(String _dirName)
+        public ItemObjArray GetDirectory(String _dirName)
         {
             HttpWebResponse _webResponse = null;
             ItemObjArray _dirData = null;
 
             Uri _requestURL = new Uri(Util.OneDriveItemResources.DriveURLRoot + Util.OneDriveItemResources.strDrive_Root + ":" + HttpUtility.UrlEncode(_dirName) + Util.Resources.strFetchChildrenParameter);
             HttpWebRequest _webRequest = (HttpWebRequest)WebRequest.Create(_requestURL);
-            Debug.Print(_requestURL.AbsoluteUri);
+            Debug.Print("GetData: " + _dirName);
 
             _webRequest.Headers.Add(Util.Header.Authorization, Util.Settings.Token.tokenType + " " + Util.Settings.Token.accessToken);
             
@@ -226,6 +295,14 @@ namespace NJN1DBackup
             {
                 if (_webResponse != null) _webResponse.Close();
             }
+            foreach (var item in _dirData.value)
+            {
+                if (item.folder == null) continue;
+                FolderList f = new FolderList();
+                f.folder = _dirName + "/"+ item.name;
+                f.obj = item;
+                lstFolder.Add(f);
+            }
             return _dirData;
         }
 
@@ -234,6 +311,13 @@ namespace NJN1DBackup
         List<Action> lstAction = new List<Action>();
         List<String> lstAllFiles = new List<String>();
         List<String> lstAllDirectories = new List<String>();
+        static List<FolderList> lstFolder = new List<FolderList>();
+
+        private struct FolderList
+        {
+            public string folder;
+            public ItemObj obj;
+        }
 
         public DifferentialBackup(string src, string dstn)
         {
@@ -368,7 +452,7 @@ namespace NJN1DBackup
             dirSrc.GetFiles().ToList().ForEach(i => hashSrcFile.Add(i.Name));
             dirSrc.GetDirectories().ToList().ForEach(i => hashSrcDir.Add(i.Name));
 
-            ItemObjArray dirInfo = DifferentialBackup.GetDirectory(_dstn);
+            ItemObjArray dirInfo = this.GetDirectory(_dstn);
 
             foreach (var item in dirInfo.value)
             {
@@ -660,7 +744,7 @@ namespace NJN1DBackup
             _webRequest.Method = Util.Method.PUT;
             _webRequest.Timeout = 1000000;
             _webRequest.ContentLength = _srcFileInfo.Length;
-            Debug.Print(_requestURL.AbsoluteUri);
+            Debug.Print("Upload: "+ _dstnFile);
             using (FileStream _fileStream = new FileStream(_srcFile, FileMode.Open, FileAccess.Read))
             {
                 byte[] buffer = new byte[Util.Settings.FileStreamBuffer];
@@ -729,7 +813,7 @@ namespace NJN1DBackup
             HttpWebRequest _webreq = (HttpWebRequest)WebRequest.Create(_reqURL);
             
             _webreq.Method = Util.Method.POST;
-            Debug.Print(_reqURL.AbsoluteUri);
+            Debug.Print(_webreq.Method + " : " +  _dstnFile);
             _webreq.ContentType = Util.HTTPContentTypes.AppJson;
             _webreq.Headers.Add(Util.Header.Authorization, Util.Settings.Token.tokenType + " " + Util.Settings.Token.accessToken);
 
@@ -811,7 +895,7 @@ namespace NJN1DBackup
                         totalBytesRead += bytesRead;
                         if (((decimal)totalBytesRead / (decimal)_fs.Length) > (decimal)(progress * 0.1))
                         {
-                            Debug.Print("File Upload Progress " + (((decimal)totalBytesRead / (decimal)_fs.Length * 100)).ToString("0.00") + "% " + Util.GetSizeStr(totalBytesRead));
+                            Debug.Print("File Upload Progress " + (((decimal)(totalBytesRead+startCounter) / (decimal)_fs.Length * 100)).ToString("0.00") + "% " + Util.GetSizeStr(totalBytesRead+startCounter));
                             progress++;
                         }
                     }

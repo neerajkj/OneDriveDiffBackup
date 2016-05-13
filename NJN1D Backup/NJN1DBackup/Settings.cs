@@ -39,6 +39,7 @@ namespace NJN1DBackup
             public const String strName = "name";
             public const String strItem = "item";
             public const String strFetchChildrenParameter = ":/children?select=id,name,size,lastModifiedDateTime,file,folder";
+            public const String strFetchFolderObj = "?select=id,name,size,childcount,lastModifiedDateTime";
             public const String strSize = "size";
             public const String strArgSilent = "-silent";
             public const String strArgQuick = "-quick";

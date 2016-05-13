@@ -4,14 +4,35 @@ using System.Net;
 using System.Web;
 using System.IO;
 using System.Runtime.Serialization.Json;
-
+//using Microsoft.OneDrive.Sdk;
+//using Microsoft.OneDrive;
+//using Microsoft.OneDrive.Sdk.WindowsForms;
 namespace NJN1DBackup
 {
     class Program
     {
+        
+
+        private static async void auth()
+        {
+           // var oneDriveClient = OneDriveClient.GetMicrosoftAccountClient(Util.Settings.ClientID, Util.OneDriveItemResources.redirectURL, Util.Settings.Scopes.Split(' '), webAuthenticationUi: new FormsWebAuthenticationUi());
+            //oneDriveClient2 = OneDriveClient.GetAuthenticatedMicrosoftAccountClient("","",null,IAuthenticationProvider)
+            //AccountSession x =  await oneDriveClient.AuthenticateAsync();
+
+            //var oneDriveClient = OneDriveClientExtensions.GetClientUsingOnlineIdAuthenticator(scopes);
+
+            //await oneDriveClient.AuthenticateAsync();
+           // Console.WriteLine(x.AccessToken);
+        }
+
         [STAThread]
         static void Main(string[] args)
         {
+            //CredentialCache.DefaultCredentials = n
+            //auth();
+
+
+            //return;
             if ((args.Length < 2) || (args.Length > 4))
             {
                 Console.WriteLine("Invalid Parameters.");
